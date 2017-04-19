@@ -179,7 +179,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		                .discoveryPath(discoveryPath)
 		                .location(DruidLocation.create(DruidEnvironment.create(indexService, dataSource), zkConnectString))
 		                .timestampSpec(timestampSpec)
-		                //.rollup(DruidRollup.create(DruidDimensions.specific(dimensions), aggregator, QueryGranularity.fromString(queryGranularity)))
+		                .rollup(DruidRollup.create(DruidDimensions.specific(dimensions), aggregator, QueryGranularity.fromString(queryGranularity)))
 		                .tuning(
 		                        ClusteredBeamTuning
 		                                .builder()
