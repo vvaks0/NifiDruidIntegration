@@ -62,6 +62,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
 	public static final PropertyDescriptor DATASOURCE = new PropertyDescriptor.Builder()
             .name("data_source")
             .description("Druid Data Source")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .required(true)
             //.allowableValues("json", "xml")
             //.defaultValue("json")
