@@ -122,6 +122,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		final List<PropertyDescriptor> props = new ArrayList<>();
 	    props.add(DATASOURCE);
 	    props.add(CONNECT_STRING);
+	    props.add(DIMENSIONS_LIST);
 	    props.add(AGGREGATOR_JSON);
 	    props.add(QUERY_GRANULARITY);
 	    props.add(WINDOW_PERIOD);
