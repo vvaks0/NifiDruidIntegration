@@ -58,7 +58,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
     
     private Tranquilizer tranquilizer = null;
     
-	static final PropertyDescriptor DATASOURCE = new PropertyDescriptor.Builder()
+	public static final PropertyDescriptor DATASOURCE = new PropertyDescriptor.Builder()
             .name("data_source")
             .description("Druid Data Source")
             .required(true)
@@ -66,7 +66,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             //.defaultValue("json")
             .build();
 	
-	static final PropertyDescriptor CONNECT_STRING = new PropertyDescriptor.Builder()
+	public static final PropertyDescriptor CONNECT_STRING = new PropertyDescriptor.Builder()
             .name("zk_connect_string")
             .description("ZK Connect String for Druid ")
             .required(true)
@@ -74,7 +74,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             //.defaultValue("json")
             .build();
 	
-	static final PropertyDescriptor TIMESTAMP_FIELD = new PropertyDescriptor.Builder()
+	public static final PropertyDescriptor TIMESTAMP_FIELD = new PropertyDescriptor.Builder()
             .name("timestamp_field")
             .description("The name of the field that will be used as the timestamp. Should be in ISO format.")
             .required(true)
@@ -82,7 +82,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .defaultValue("timestamp")
             .build();
 	
-	static final PropertyDescriptor AGGREGATOR_JSON = new PropertyDescriptor.Builder()
+	public static final PropertyDescriptor AGGREGATOR_JSON = new PropertyDescriptor.Builder()
             .name("aggregators_descriptor")
             .description("Tranquility compliant JSON string that defines what aggregators to apply on ingest.")
             .required(true)
@@ -90,7 +90,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             //.defaultValue("json")
             .build();
 	
-	static final PropertyDescriptor DIMENSIONS_LIST = new PropertyDescriptor.Builder()
+	public static final PropertyDescriptor DIMENSIONS_LIST = new PropertyDescriptor.Builder()
             .name("dimensions_list")
             .description("A comma separated list of field names that will be stored as dimensions on ingest.")
             .required(true)
@@ -98,7 +98,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             //.defaultValue("json")
             .build();
 	
-	static final PropertyDescriptor QUERY_GRANULARITY = new PropertyDescriptor.Builder()
+	public static final PropertyDescriptor QUERY_GRANULARITY = new PropertyDescriptor.Builder()
             .name("query_granularity")
             .description("Time unit by which to group and aggregate/rollup events.")
             .required(true)
@@ -106,7 +106,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .defaultValue("MINUTE")
             .build();
 	
-	static final PropertyDescriptor WINDOW_PERIOD = new PropertyDescriptor.Builder()
+	public static final PropertyDescriptor WINDOW_PERIOD = new PropertyDescriptor.Builder()
             .name("window_period")
             .description("Grace period to allow late arriving events for real time ingest.")
             .required(true)
