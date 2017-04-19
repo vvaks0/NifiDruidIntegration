@@ -18,6 +18,7 @@ import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.InitializationException;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.joda.time.DateTime;
@@ -70,8 +71,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .name("zk_connect_string")
             .description("ZK Connect String for Druid ")
             .required(true)
-            //.allowableValues("json", "xml")
-            //.defaultValue("json")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
 	public static final PropertyDescriptor TIMESTAMP_FIELD = new PropertyDescriptor.Builder()
@@ -80,22 +80,21 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .required(true)
             //.allowableValues("json", "xml")
             .defaultValue("timestamp")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
 	public static final PropertyDescriptor AGGREGATOR_JSON = new PropertyDescriptor.Builder()
             .name("aggregators_descriptor")
             .description("Tranquility compliant JSON string that defines what aggregators to apply on ingest.")
             .required(true)
-            //.allowableValues("json", "xml")
-            //.defaultValue("json")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
 	public static final PropertyDescriptor DIMENSIONS_LIST = new PropertyDescriptor.Builder()
             .name("dimensions_list")
             .description("A comma separated list of field names that will be stored as dimensions on ingest.")
             .required(true)
-            //.allowableValues("json", "xml")
-            //.defaultValue("json")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
 	public static final PropertyDescriptor QUERY_GRANULARITY = new PropertyDescriptor.Builder()
@@ -104,6 +103,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .required(true)
             .allowableValues("RAW","SECOND","MINUTE","HOUR","DAY","MONTH","YEAR")
             .defaultValue("MINUTE")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
 	public static final PropertyDescriptor WINDOW_PERIOD = new PropertyDescriptor.Builder()
@@ -112,6 +112,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .required(true)
             .allowableValues("PT1M","PT10M","PT60M")
             .defaultValue("PT10M")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
 	 private static final List<PropertyDescriptor> properties;
