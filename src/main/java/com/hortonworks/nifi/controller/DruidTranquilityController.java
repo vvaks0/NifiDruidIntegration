@@ -216,6 +216,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
         try {
             return mapper.readValue(aggregatorJson, List.class);
         } catch (IOException e) {
+        	e.printStackTrace();
             throw new IllegalArgumentException("Exception while parsing the aggregratorJson");
         }
     }
