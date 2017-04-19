@@ -52,6 +52,7 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 @CapabilityDescription("Provides a controller service to manage property files.")
 public class DruidTranquilityController extends AbstractControllerService implements DruidTranquilityService{
 	private String indexService = "druid/overlord"; // Your overlord's druid.service;
+	private String firehosePattern = "druid:firehose:%s";
 	private String discoveryPath = "/druid/discovery"; // Your overlord's druid.discovery.curator.path;
 	private int clusterPartitions = 1;
     private int clusterReplication = 1 ;
@@ -177,7 +178,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		final Beam<Map<String, Object>> beam = DruidBeams.builder(timestamper)
 			    		.curator(curator)
 		                .discoveryPath(discoveryPath)
-		                .location(DruidLocation.create(DruidEnvironment.create(indexService, dataSource), zkConnectString))
+		                .location(DruidLocation.create(DruidEnvironment.create(indexService, firehosePattern),dataSource))
 		                .timestampSpec(timestampSpec)
 		                .rollup(DruidRollup.create(DruidDimensions.specific(dimensions), aggregator, QueryGranularity.fromString(queryGranularity)))
 		                .tuning(
