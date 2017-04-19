@@ -47,7 +47,7 @@ import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 
-@Tags({"nifirocks", "properties"})
+@Tags({"Druid","Timeseries","OLAP"})
 @CapabilityDescription("Provides a controller service to manage property files.")
 public class DruidTranquilityController extends AbstractControllerService implements DruidTranquilityService{
 	private String indexService = "druid/overlord"; // Your overlord's druid.service;
@@ -128,6 +128,10 @@ public class DruidTranquilityController extends AbstractControllerService implem
 	    properties = Collections.unmodifiableList(props);
 	}
 	
+	@Override
+    protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
+        return properties;
+    }
 
 	@OnEnabled
 	public void onConfigured(final ConfigurationContext context) throws InitializationException{

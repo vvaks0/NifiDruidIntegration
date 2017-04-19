@@ -32,7 +32,7 @@ import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
 
 @SideEffectFree
-@Tags({"Druid"})
+@Tags({"Druid","Timeseries","OLAP"})
 @CapabilityDescription("Sends events to Apache Druid for Indexing")
 public class PutDruidProcessor extends AbstractProcessor {
 	private List<PropertyDescriptor> properties;
