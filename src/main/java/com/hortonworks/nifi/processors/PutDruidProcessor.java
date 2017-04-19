@@ -42,7 +42,7 @@ public class PutDruidProcessor extends AbstractProcessor {
     public static final PropertyDescriptor DRUID_TRANQUILITY_SERVICE = new PropertyDescriptor.Builder()
             .name("druid_tranquility_service")
             .description("Tranquility Service to use for sending events to Druid")
-            .required(false)
+            .required(true)
             .identifiesControllerService(DruidTranquilityController.class)
             .build();
 	
@@ -63,6 +63,7 @@ public class PutDruidProcessor extends AbstractProcessor {
     
 	public void init(final ProcessorInitializationContext context){
 	    List<PropertyDescriptor> properties = new ArrayList<>();
+	    properties.add(DRUID_TRANQUILITY_SERVICE);
 	    this.properties = Collections.unmodifiableList(properties);
 		
 	    Set<Relationship> relationships = new HashSet<Relationship>();

@@ -50,13 +50,12 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 @Tags({"nifirocks", "properties"})
 @CapabilityDescription("Provides a controller service to manage property files.")
 public class DruidTranquilityController extends AbstractControllerService implements DruidTranquilityService{
-	
 	private String indexService = "druid/overlord"; // Your overlord's druid.service;
 	private String discoveryPath = "/druid/discovery"; // Your overlord's druid.discovery.curator.path;
 	private int clusterPartitions = 1;
     private int clusterReplication = 1 ;
     private String indexRetryPeriod = "PT10M";
-	
+    
     private Tranquilizer tranquilizer = null;
     
 	static final PropertyDescriptor DATASOURCE = new PropertyDescriptor.Builder()
@@ -115,20 +114,20 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .defaultValue("PT10M")
             .build();
 
+	 private static final List<PropertyDescriptor> properties;
+	
 	static{
-	    final List<PropertyDescriptor> props = new ArrayList<>();
+		final List<PropertyDescriptor> props = new ArrayList<>();
 	    props.add(DATASOURCE);
 	    props.add(CONNECT_STRING);
 	    props.add(AGGREGATOR_JSON);
 	    props.add(QUERY_GRANULARITY);
 	    props.add(WINDOW_PERIOD);
 	    props.add(TIMESTAMP_FIELD);
+	    
+	    properties = Collections.unmodifiableList(props);
 	}
 	
-	@Override
-	public String getProperty(String key) {
-		return null;
-	}
 
 	@OnEnabled
 	public void onConfigured(final ConfigurationContext context) throws InitializationException{
