@@ -135,12 +135,14 @@ public class PutDruidProcessor extends AbstractProcessor {
 	    	@Override
 	    	public void onFailure(Throwable cause) {
 	    		if (cause instanceof MessageDroppedException) {
-	    			getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause);
-	    			getLogger().error("********** Transfering FlowFIle to DROPPED relationship");
+	    			getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage());
+	    			getLogger().error("********** Full Stack Trace: " + cause.getStackTrace());
+	    			getLogger().error("********** Transfering FlowFile to DROPPED relationship");
 	    			session.transfer(flowFile, REL_DROPPED);
 	    		} else {
-	    			getLogger().error("********** FlowFile Processing Failed due to: " + cause);
-	    			getLogger().error("********** Transfering FlowFIle to FAIL relationship");
+	    			getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage());
+	    			getLogger().error("********** Full Stack Trace: " + cause.getStackTrace());
+	    			getLogger().error("********** Transfering FlowFile to FAIL relationship");
 	    			session.transfer(flowFile, REL_FAIL);
 	    		}
 	    	}
