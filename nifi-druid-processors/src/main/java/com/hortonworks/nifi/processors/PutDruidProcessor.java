@@ -25,7 +25,7 @@ import org.apache.nifi.processor.io.InputStreamCallback;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import com.hortonworks.nifi.controller.DruidTranquilityController;
+import com.hortonworks.nifi.controller.api.DruidTranquilityService;
 import com.metamx.tranquility.tranquilizer.MessageDroppedException;
 import com.metamx.tranquility.tranquilizer.Tranquilizer;
 import com.twitter.util.Future;
@@ -43,7 +43,7 @@ public class PutDruidProcessor extends AbstractProcessor {
             .name("druid_tranquility_service")
             .description("Tranquility Service to use for sending events to Druid")
             .required(true)
-            .identifiesControllerService(DruidTranquilityController.class)
+            .identifiesControllerService(DruidTranquilityService.class)
             .build();
 	
 	public static final Relationship REL_SUCCESS = new Relationship.Builder()
@@ -87,7 +87,7 @@ public class PutDruidProcessor extends AbstractProcessor {
 	public void onTrigger(ProcessContext context, final ProcessSession session) throws ProcessException {
 		//ProvenanceReporter provRep = session.getProvenanceReporter();
 		
-		DruidTranquilityController tranquilityController = context.getProperty(DRUID_TRANQUILITY_SERVICE).asControllerService(DruidTranquilityController.class);
+		DruidTranquilityService tranquilityController = context.getProperty(DRUID_TRANQUILITY_SERVICE).asControllerService(DruidTranquilityService.class);
 		Tranquilizer<String> tranquilizer = tranquilityController.getTranquilizer();
 		flowFile = session.get();
 		if ( flowFile == null ) {

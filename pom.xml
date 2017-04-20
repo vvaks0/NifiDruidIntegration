@@ -3,13 +3,20 @@
   <groupId>com.hortonworks.nifi</groupId>
   <artifactId>NifiDruidIntegration</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <packaging>nar</packaging>
+  <packaging>pom</packaging>
    <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.7</maven.compiler.source>
         <maven.compiler.target>1.7</maven.compiler.target>
         <nifi.version>1.1.1</nifi.version>
    </properties>
+   <modules>
+   		<module>nifi-druid-bundle-nar</module>
+		<module>nifi-druid-controller-service-api-nar</module>
+		<module>nifi-druid-controller-service-api</module>
+		<module>nifi-druid-controller-service</module>
+		<module>nifi-druid-processors</module>
+   </modules>
    <dependencies>
         <dependency>
             <groupId>org.apache.nifi</groupId>
