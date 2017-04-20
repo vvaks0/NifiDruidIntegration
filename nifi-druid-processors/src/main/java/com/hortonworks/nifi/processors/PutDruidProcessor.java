@@ -37,7 +37,7 @@ import com.twitter.util.FutureEventListener;
 public class PutDruidProcessor extends AbstractProcessor {
 	private List<PropertyDescriptor> properties;
 	private Set<Relationship> relationships;
-	private FlowFile flowFile;
+	//private FlowFile flowFile;
 
     public static final PropertyDescriptor DRUID_TRANQUILITY_SERVICE = new PropertyDescriptor.Builder()
             .name("druid_tranquility_service")
@@ -89,10 +89,11 @@ public class PutDruidProcessor extends AbstractProcessor {
 		
 		DruidTranquilityService tranquilityController = context.getProperty(DRUID_TRANQUILITY_SERVICE).asControllerService(DruidTranquilityService.class);
 		Tranquilizer<String> tranquilizer = tranquilityController.getTranquilizer();
-		flowFile = session.get();
-		if ( flowFile == null ) {
-        	flowFile = session.create();
-		}
+		
+        FlowFile flowFile = session.get();
+        if (flowFile == null || flowFile.getSize() == 0) {
+            return;
+        }
 		
 		final ObjectMapper mapper = new ObjectMapper();
 		final AtomicReference<JsonNode> rootNodeRef = new AtomicReference<>(null);
@@ -122,11 +123,11 @@ public class PutDruidProcessor extends AbstractProcessor {
 	    		if (cause instanceof MessageDroppedException) {
 	    			getLogger().error("FlowFile Dropped due to MessageDroppedException: " + cause);
 	    			getLogger().error("Transfering FlowFIle to DROPPED relationship");
-	    			session.transfer(flowFile, REL_DROPPED);
+	    			//session.transfer(flowFile, REL_DROPPED);
 	    		} else {
 	    			getLogger().error("FlowFile Processing Failed due to: " + cause);
 	    			getLogger().error("Transfering FlowFIle to FAIL relationship");
-	    			session.transfer(flowFile, REL_FAIL);
+	    			//session.transfer(flowFile, REL_FAIL);
 	    		}
 	    	}
 
