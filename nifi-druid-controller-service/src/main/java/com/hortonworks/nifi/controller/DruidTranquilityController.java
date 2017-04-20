@@ -213,8 +213,12 @@ public class DruidTranquilityController extends AbstractControllerService implem
 	
 	private  List<Map<String, Map<String, String>>> parseJsonString(String aggregatorJson) {
         ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, Map<String, String>>> aggSpecList = null;
         try {
-            return mapper.readValue(aggregatorJson, List.class);
+        	getLogger().debug("********** Druid Tranquility Service: Aggregator Spec as String: " + aggregatorJson);
+            aggSpecList = mapper.readValue(aggregatorJson, List.class);
+            getLogger().debug("********** Druid Tranquility Service: Aggregator Spec as List: " + aggSpecList);
+        	return aggSpecList;
         } catch (IOException e) {
         	e.printStackTrace();
             throw new IllegalArgumentException("Exception while parsing the aggregratorJson");
