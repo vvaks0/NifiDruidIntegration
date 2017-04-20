@@ -6,12 +6,12 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.SideEffectFree;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -26,6 +26,8 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.stream.io.StreamUtils;
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.JsonParseException;
+import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.hortonworks.nifi.controller.api.DruidTranquilityService;
@@ -33,6 +35,8 @@ import com.metamx.tranquility.tranquilizer.MessageDroppedException;
 import com.metamx.tranquility.tranquilizer.Tranquilizer;
 import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
+
+import scala.runtime.BoxedUnit;
 
 @SideEffectFree
 @Tags({"Druid","Timeseries","OLAP"})
@@ -91,7 +95,7 @@ public class PutDruidProcessor extends AbstractProcessor {
 		//ProvenanceReporter provRep = session.getProvenanceReporter();
 		
 		DruidTranquilityService tranquilityController = context.getProperty(DRUID_TRANQUILITY_SERVICE).asControllerService(DruidTranquilityService.class);
-		Tranquilizer<String> tranquilizer = tranquilityController.getTranquilizer();
+		Tranquilizer<Map<String,Object>> tranquilizer = tranquilityController.getTranquilizer();
 		
         final FlowFile flowFile = session.get();
         if (flowFile == null || flowFile.getSize() == 0) {
@@ -126,21 +130,32 @@ public class PutDruidProcessor extends AbstractProcessor {
         });
         
         String contentString = new String(buffer, StandardCharsets.UTF_8);
-		getLogger().debug(tranquilizer.status().toString());
-		Future<?> future = tranquilizer.send(contentString);
+        Map<String,Object> contentMap = null;
+        try {
+        	contentMap = new ObjectMapper().readValue(contentString, HashMap.class);
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+        
+		getLogger().debug("********** Tranquilizer Status: " + tranquilizer.status().toString());
+		Future<BoxedUnit> future = tranquilizer.send(contentMap);
 		//getLogger().debug("Sent Payload to Druid: " + rootNodeRef.toString());
-		getLogger().debug("Sent Payload to Druid: " + contentString);
+		getLogger().debug("********** Sent Payload to Druid: " + contentMap);
 	    
 	    future.addEventListener(new FutureEventListener<Object>() {
 	    	@Override
 	    	public void onFailure(Throwable cause) {
 	    		if (cause instanceof MessageDroppedException) {
-	    			getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage());
+	    			getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
 	    			getLogger().error("********** Full Stack Trace: " + cause.getStackTrace());
 	    			getLogger().error("********** Transfering FlowFile to DROPPED relationship");
 	    			session.transfer(flowFile, REL_DROPPED);
 	    		} else {
-	    			getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage());
+	    			getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
 	    			getLogger().error("********** Full Stack Trace: " + cause.getStackTrace());
 	    			getLogger().error("********** Transfering FlowFile to FAIL relationship");
 	    			session.transfer(flowFile, REL_FAIL);
