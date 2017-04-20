@@ -3,6 +3,7 @@ package com.hortonworks.nifi.processors;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.SideEffectFree;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -22,6 +24,7 @@ import org.apache.nifi.processor.ProcessorInitializationContext;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
+import org.apache.nifi.stream.io.StreamUtils;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -90,11 +93,12 @@ public class PutDruidProcessor extends AbstractProcessor {
 		DruidTranquilityService tranquilityController = context.getProperty(DRUID_TRANQUILITY_SERVICE).asControllerService(DruidTranquilityService.class);
 		Tranquilizer<String> tranquilizer = tranquilityController.getTranquilizer();
 		
-        FlowFile flowFile = session.get();
+        final FlowFile flowFile = session.get();
         if (flowFile == null || flowFile.getSize() == 0) {
             return;
         }
 		
+        /*
 		final ObjectMapper mapper = new ObjectMapper();
 		final AtomicReference<JsonNode> rootNodeRef = new AtomicReference<>(null);
 		try {
@@ -102,8 +106,8 @@ public class PutDruidProcessor extends AbstractProcessor {
 				@Override
 				public void process(final InputStream in) throws IOException {
 					try (final InputStream bufferedIn = new BufferedInputStream(in)) {
-						rootNodeRef.set(mapper.readTree(bufferedIn.toString()));
-						//String string = IOUtils.toString(bufferedIn).toString();
+						//rootNodeRef.set(mapper.readTree(bufferedIn.toString()));
+						String string = IOUtils.toString(bufferedIn).toString();
 					}
 				}
 			});
@@ -111,11 +115,21 @@ public class PutDruidProcessor extends AbstractProcessor {
 			getLogger().error("Failed to parse {} due to {}; routing to failure", new Object[] {flowFile, pe.toString()}, pe);
 			session.transfer(flowFile, REL_FAIL);
 			return;
-		}
+		}*/
 		
+        final byte[] buffer = new byte[(int) flowFile.getSize()];
+        session.read(flowFile, new InputStreamCallback() {
+            @Override
+            public void process(final InputStream in) throws IOException {
+                StreamUtils.fillBuffer(in, buffer);
+            }
+        });
+        
+        String contentString = new String(buffer, StandardCharsets.UTF_8);
 		getLogger().debug(tranquilizer.status().toString());
-		Future<?> future = tranquilizer.send(rootNodeRef.toString());
-	    getLogger().debug("Sent Payload to Druid: " + rootNodeRef.toString());
+		Future<?> future = tranquilizer.send(contentString);
+		//getLogger().debug("Sent Payload to Druid: " + rootNodeRef.toString());
+		getLogger().debug("Sent Payload to Druid: " + contentString);
 	    
 	    future.addEventListener(new FutureEventListener<Object>() {
 	    	@Override
@@ -123,21 +137,21 @@ public class PutDruidProcessor extends AbstractProcessor {
 	    		if (cause instanceof MessageDroppedException) {
 	    			getLogger().error("FlowFile Dropped due to MessageDroppedException: " + cause);
 	    			getLogger().error("Transfering FlowFIle to DROPPED relationship");
-	    			//session.transfer(flowFile, REL_DROPPED);
+	    			session.transfer(flowFile, REL_DROPPED);
 	    		} else {
 	    			getLogger().error("FlowFile Processing Failed due to: " + cause);
 	    			getLogger().error("Transfering FlowFIle to FAIL relationship");
-	    			//session.transfer(flowFile, REL_FAIL);
+	    			session.transfer(flowFile, REL_FAIL);
 	    		}
 	    	}
 
 	    	@Override
 	    	public void onSuccess(Object value) {
 	    		getLogger().debug("FlowFile Processing Success : "+ value);
+	    		session.transfer(flowFile, REL_SUCCESS);
 	    	}
 	    });
 		
 		//flowFile = session.putAllAttributes(flowFile, (Map<String, String>) new ArrayList());
-		session.transfer(flowFile, REL_SUCCESS);
 	}
 }
