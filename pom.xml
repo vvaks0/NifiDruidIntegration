@@ -44,16 +44,16 @@
     		<version>1.10</version>
 		</dependency>
 		<dependency>
-    		<groupId>com.google.guava</groupId>
-    		<artifactId>guava-base</artifactId>
-    		<version>r03</version>
-		</dependency>	
-		<dependency>
     		<groupId>com.sun.jersey</groupId>
     		<artifactId>jersey-client</artifactId>
     		<version>1.19.1</version>
 		</dependency>
 		<!-- 
+		<dependency>
+    		<groupId>com.google.guava</groupId>
+    		<artifactId>guava-base</artifactId>
+    		<version>r03</version>
+		</dependency>	
 		<dependency>
     		<groupId>org.apache.phoenix</groupId>
     		<artifactId>phoenix-core</artifactId>
@@ -103,12 +103,12 @@
     		<groupId>org.codehaus.jackson</groupId>
     		<artifactId>jackson-mapper-asl</artifactId>
     		<version>1.9.13</version>
-		</dependency> -->
+		</dependency> 
 		<dependency>
     		<groupId>org.json</groupId>
     		<artifactId>json</artifactId>
     		<version>20160810</version>
-		</dependency>
+		</dependency>-->
 	</dependencies>
     <build>
         <plugins>
