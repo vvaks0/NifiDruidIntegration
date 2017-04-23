@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -159,7 +160,17 @@ public class DruidTranquilityController extends AbstractControllerService implem
 				return new DateTime(theMap.get(timestampField));
 			}
 		};
-
+		
+		Iterator<AggregatorFactory> aggIterator = aggregator.iterator();
+		AggregatorFactory currFactory;
+		getLogger().debug("********** Number of Aggregations Defined: " + aggregator.size());
+		while(aggIterator.hasNext()){
+			currFactory = aggIterator.next();
+			getLogger().debug("********** Verifying Aggregator Definition");
+			getLogger().debug("********** Aggregator Name: " + currFactory.getName());
+			getLogger().debug("********** Aggregator Type: " + currFactory.getTypeName());
+			getLogger().debug("********** Aggregator Req Fields: " + currFactory.requiredFields());			
+		}
 		// Tranquility uses ZooKeeper (through Curator) for coordination.
 		final CuratorFramework curator = CuratorFrameworkFactory
 		                .builder()
