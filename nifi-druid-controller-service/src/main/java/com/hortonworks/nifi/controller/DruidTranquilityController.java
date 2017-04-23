@@ -139,7 +139,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
 
 	@OnEnabled
 	public void onConfigured(final ConfigurationContext context) throws InitializationException{
-		getLogger().info("Starting properties file service");
+		getLogger().info("********** Starting Druid Tranquility Controller Service...");
 	   
 		final String dataSource = context.getProperty(DATASOURCE).getValue();
 		final String zkConnectString = context.getProperty(CONNECT_STRING).getValue();
@@ -222,9 +222,9 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		return tranquilizer;
 	}
 	
-	private  List<Map<String, Map<String, String>>> parseJsonString(String aggregatorJson) {
+	private  List<Map<String, String>> parseJsonString(String aggregatorJson) {
         ObjectMapper mapper = new ObjectMapper();
-        List<Map<String, Map<String, String>>> aggSpecList = null;
+        List<Map<String, String>> aggSpecList = null;
         try {
         	getLogger().debug("********** Druid Tranquility Service: Aggregator Spec as String: " + aggregatorJson);
             aggSpecList = mapper.readValue(aggregatorJson, List.class);
@@ -243,36 +243,36 @@ public class DruidTranquilityController extends AbstractControllerService implem
 	
 	private List<AggregatorFactory> getAggregatorList(String aggregatorJSON) {
         List<AggregatorFactory> aggregatorList = new LinkedList<>();
-        List<Map<String, Map<String, String>>> aggregatorInfo = parseJsonString(aggregatorJSON);
-        for (Map<String, Map<String, String>> aggregator : aggregatorInfo) {
+        List<Map<String, String>> aggregatorInfo = parseJsonString(aggregatorJSON);
+        for (Map<String, String> aggregator : aggregatorInfo) {
 
-            if (aggregator.containsKey("count")) {
-                Map<String, String> map = aggregator.get("count");
-                aggregatorList.add(getCountAggregator(map));
+            if (aggregator.get("type").equalsIgnoreCase("count")) {
+                //Map<String, String> map = aggregator.get("count");
+                aggregatorList.add(getCountAggregator(aggregator));
             }
-            else if (aggregator.containsKey("doublesum")) {
-                Map<String, String> map = aggregator.get("doublesum");
-                aggregatorList.add(getDoubleSumAggregator(map));
+            else if (aggregator.get("type").equalsIgnoreCase("doublesum")) {
+                //Map<String, String> map = aggregator.get("doublesum");
+                aggregatorList.add(getDoubleSumAggregator(aggregator));
             }
-            else if (aggregator.containsKey("doublemax")) {
-                Map<String, String> map = aggregator.get("doublemax");
-                aggregatorList.add(getDoubleMaxAggregator(map));
+            else if (aggregator.get("type").equalsIgnoreCase("doublemax")) {
+                //Map<String, String> map = aggregator.get("doublemax");
+                aggregatorList.add(getDoubleMaxAggregator(aggregator));
             }
-            else if (aggregator.containsKey("doublemin")) {
-                Map<String, String> map = aggregator.get("doublemin");
-                aggregatorList.add(getDoubleMinAggregator(map));
+            else if (aggregator.get("type").equalsIgnoreCase("doublemin")) {
+                //Map<String, String> map = aggregator.get("doublemin");
+                aggregatorList.add(getDoubleMinAggregator(aggregator));
             }
-            else if (aggregator.containsKey("longsum")) {
-                Map<String, String> map = aggregator.get("longsum");
-                aggregatorList.add(getLongSumAggregator(map));
+            else if (aggregator.get("type").equalsIgnoreCase("longsum")) {
+                //Map<String, String> map = aggregator.get("longsum");
+                aggregatorList.add(getLongSumAggregator(aggregator));
             }
-            else if (aggregator.containsKey("longmax")) {
-                Map<String, String> map = aggregator.get("longmax");
-                aggregatorList.add(getLongMaxAggregator(map));
+            else if (aggregator.get("type").equalsIgnoreCase("longmax")) {
+                //Map<String, String> map = aggregator.get("longmax");
+                aggregatorList.add(getLongMaxAggregator(aggregator));
             }
-            else if (aggregator.containsKey("longmin")) {
-                Map<String, String> map = aggregator.get("longmin");
-                aggregatorList.add(getLongMinAggregator(map));
+            else if (aggregator.get("type").equalsIgnoreCase("longmin")) {
+                //Map<String, String> map = aggregator.get("longmin");
+                aggregatorList.add(getLongMinAggregator(aggregator));
             }
         }
 
