@@ -51,9 +51,7 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 @Tags({"Druid","Timeseries","OLAP"})
 @CapabilityDescription("Provides a controller service to manage property files.")
 public class DruidTranquilityController extends AbstractControllerService implements DruidTranquilityService{
-	private String indexService = "druid/overlord"; // Your overlord's druid.service;
 	private String firehosePattern = "druid:firehose:%s";
-	private String discoveryPath = "/druid/discovery"; // Your overlord's druid.discovery.curator.path;
 	private int clusterPartitions = 1;
     private int clusterReplication = 1 ;
     private String indexRetryPeriod = "PT10M";
@@ -65,14 +63,28 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .description("Druid Data Source")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .required(true)
-            //.allowableValues("json", "xml")
-            //.defaultValue("json")
             .build();
 	
 	public static final PropertyDescriptor CONNECT_STRING = new PropertyDescriptor.Builder()
             .name("zk_connect_string")
             .description("ZK Connect String for Druid ")
             .required(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+	
+	public static final PropertyDescriptor DRUID_INDEX_SERVICE_PATH = new PropertyDescriptor.Builder()
+            .name("index_service_path")
+            .description("Druid Index Service path as defined via the Druid Overlord druid.service property.")
+            .required(true)
+            .defaultValue("druid/overlord")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+	
+	public static final PropertyDescriptor DRUID_DISCOVERY_PATH = new PropertyDescriptor.Builder()
+            .name("discovery_path")
+            .description("Druid Discovery Path as configured in Druid Common druid.discovery.curator.path property")
+            .required(true)
+            .defaultValue("/druid/discovery")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
@@ -99,12 +111,21 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
+	public static final PropertyDescriptor SEGMENT_GRANULARITY = new PropertyDescriptor.Builder()
+            .name("segment_granularity")
+            .description("Time unit by which to group and aggregate/rollup events.")
+            .required(true)
+            .allowableValues("NONE","SECOND","MINUTE","TEN_MINUTE","HOUR","DAY","MONTH","YEAR")
+            .defaultValue("MINUTE")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+	
 	public static final PropertyDescriptor QUERY_GRANULARITY = new PropertyDescriptor.Builder()
             .name("query_granularity")
             .description("Time unit by which to group and aggregate/rollup events.")
             .required(true)
-            .allowableValues("RAW","SECOND","MINUTE","HOUR","DAY","MONTH","YEAR")
-            .defaultValue("MINUTE")
+            .allowableValues("NONE","SECOND","MINUTE","TEN_MINUTE","HOUR","DAY","MONTH","YEAR")
+            .defaultValue("TEN_MINUTE")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	
@@ -123,8 +144,11 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		final List<PropertyDescriptor> props = new ArrayList<>();
 	    props.add(DATASOURCE);
 	    props.add(CONNECT_STRING);
+	    props.add(DRUID_INDEX_SERVICE_PATH);
+	    props.add(DRUID_DISCOVERY_PATH);
 	    props.add(DIMENSIONS_LIST);
 	    props.add(AGGREGATOR_JSON);
+	    props.add(SEGMENT_GRANULARITY);
 	    props.add(QUERY_GRANULARITY);
 	    props.add(WINDOW_PERIOD);
 	    props.add(TIMESTAMP_FIELD);
@@ -143,7 +167,10 @@ public class DruidTranquilityController extends AbstractControllerService implem
 	   
 		final String dataSource = context.getProperty(DATASOURCE).getValue();
 		final String zkConnectString = context.getProperty(CONNECT_STRING).getValue();
+		final String indexService = context.getProperty(DRUID_INDEX_SERVICE_PATH).getValue();
+		final String discoveryPath = context.getProperty(DRUID_DISCOVERY_PATH).getValue();
 		final String timestampField  = context.getProperty(TIMESTAMP_FIELD).getValue();
+		final String segmentGranularity = context.getProperty(SEGMENT_GRANULARITY).getValue();
 		final String queryGranularity = context.getProperty(QUERY_GRANULARITY).getValue();
 		final String windowPeriod = context.getProperty(WINDOW_PERIOD).getValue();
 		final String aggregatorJSON = context.getProperty(AGGREGATOR_JSON).getValue();
@@ -195,7 +222,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		                        ClusteredBeamTuning
 		                                .builder()
 		                                //.segmentGranularity(Granularity.MINUTE)
-		                                .segmentGranularity(getSegmentGranularity(queryGranularity))
+		                                .segmentGranularity(getSegmentGranularity(segmentGranularity))
 		                                .windowPeriod(new Period(windowPeriod))
 		                                .partitions(clusterPartitions)
 		                                .replicants(clusterReplication)
