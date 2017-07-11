@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.nifi.annotation.behavior.SideEffectFree;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
@@ -44,6 +45,7 @@ import scala.runtime.BoxedUnit;
 public class PutDruidProcessor extends AbstractProcessor {
 	private List<PropertyDescriptor> properties;
 	private Set<Relationship> relationships;
+	private final AtomicReference<ProcessSession> currentSession = new AtomicReference<ProcessSession>();
 	//private FlowFile flowFile;
 
     public static final PropertyDescriptor DRUID_TRANQUILITY_SERVICE = new PropertyDescriptor.Builder()
@@ -93,7 +95,7 @@ public class PutDruidProcessor extends AbstractProcessor {
 	@Override
 	public void onTrigger(ProcessContext context, final ProcessSession session) throws ProcessException {
 		//ProvenanceReporter provRep = session.getProvenanceReporter();
-		
+		currentSession.set(session);
 		DruidTranquilityService tranquilityController = context.getProperty(DRUID_TRANQUILITY_SERVICE).asControllerService(DruidTranquilityService.class);
 		Tranquilizer<Map<String,Object>> tranquilizer = tranquilityController.getTranquilizer();
 		
@@ -153,12 +155,12 @@ public class PutDruidProcessor extends AbstractProcessor {
 	    			getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
 	    			cause.getStackTrace();
 	    			getLogger().error("********** Transfering FlowFile to DROPPED relationship");
-	    			session.transfer(flowFile, REL_DROPPED);
+	    			currentSession.get().transfer(flowFile, REL_DROPPED);
 	    		} else {
 	    			getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
 	    			cause.printStackTrace();
 	    			getLogger().error("********** Transfering FlowFile to FAIL relationship");
-	    			session.transfer(flowFile, REL_FAIL);
+	    			currentSession.get().transfer(flowFile, REL_FAIL);
 	    		}
 	    	}
 
