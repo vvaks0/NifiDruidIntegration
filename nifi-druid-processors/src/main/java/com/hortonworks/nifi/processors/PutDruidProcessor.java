@@ -124,7 +124,7 @@ public class PutDruidProcessor
         getLogger().debug("********** Tranquilizer Status: " + tranquilizer.status().toString());
         Future<BoxedUnit> future = tranquilizer.send(contentMap);
         getLogger().debug("********** Sent Payload to Druid: " + contentMap);
-
+        final Map<String,String> relType = new HashMap<String,String>();
         future.addEventListener(new FutureEventListener<Object>() {
             @Override
             public void onFailure(Throwable cause) {
@@ -132,20 +132,31 @@ public class PutDruidProcessor
                     getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
                     cause.getStackTrace();
                     getLogger().error("********** Transfering FlowFile to DROPPED relationship");
-                    session.transfer(flowFile, REL_DROPPED);
+                    relType.put("rel","DROPPED");
+                    //session.transfer(flowFile, REL_DROPPED);
                 } else {
                     getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
                     cause.printStackTrace();
                     getLogger().error("********** Transfering FlowFile to FAIL relationship");
-                    session.transfer(flowFile, REL_FAIL);
+                    relType.put("rel","FAIL");
+                    //session.transfer(flowFile, REL_FAIL);
                 }
             }
 
             @Override
             public void onSuccess(Object value) {
                 getLogger().debug("********** FlowFile Processing Success : "+ value);
-                session.transfer(flowFile, REL_SUCCESS);
+                relType.put("rel","SUCCESS");
+                //session.transfer(flowFile, REL_SUCCESS);
             }
         });
+        
+        if(relType.get("rel").toString().equals("SUCCESS")){
+        	session.transfer(flowFile, REL_SUCCESS);
+        }else if(relType.get("rel").toString().equals("DROPPED")){
+        	session.transfer(flowFile, REL_DROPPED);
+        }else if(relType.get("rel").toString().equals("FAIL")){
+        	session.transfer(flowFile, REL_FAIL);
+        }
     }
 }
