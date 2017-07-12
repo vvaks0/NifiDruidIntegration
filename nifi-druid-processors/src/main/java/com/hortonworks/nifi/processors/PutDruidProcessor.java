@@ -45,6 +45,7 @@ public class PutDruidProcessor
 
     private List<PropertyDescriptor> properties;
     private Set<Relationship> relationships;
+    private final Map<Object,String> messageStatus = new HashMap<Object,String>();
 
     public static final PropertyDescriptor DRUID_TRANQUILITY_SERVICE = new PropertyDescriptor.Builder()
             .name("druid_tranquility_service")
@@ -128,6 +129,7 @@ public class PutDruidProcessor
         	}
 
         	getLogger().debug("********** Tranquilizer Status: " + tranquilizer.status().toString());
+        	messageStatus.put(flowFile, "pending");
         	Future<BoxedUnit> future = tranquilizer.send(contentMap);
         	getLogger().debug("********** Sent Payload to Druid: " + contentMap);
         
@@ -138,27 +140,29 @@ public class PutDruidProcessor
         				getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
         				cause.getStackTrace();
         				getLogger().error("********** Transfering FlowFile to DROPPED relationship");
-        				session.transfer(flowFile, REL_DROPPED);
+        				//session.transfer(flowFile, REL_DROPPED);
         			} else {
         				getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
         				cause.printStackTrace();
         				getLogger().error("********** Transfering FlowFile to FAIL relationship");
-        				session.transfer(flowFile, REL_FAIL);
+        				//session.transfer(flowFile, REL_FAIL);
         			}
         		}
 
         		@Override
         		public void onSuccess(Object value) {
-        			getLogger().debug("********** FlowFile Processing Success : "+ value);
-        			session.transfer(flowFile, REL_SUCCESS);
+        			getLogger().debug("********** FlowFile Processing Success : "+ value.toString());
+        			//session.transfer(flowFile, REL_SUCCESS);
         		}
         	});
 
+        	/*
         	try {
         		Await.result(future);
         	} catch (Exception e) {
         		e.printStackTrace();
-        	}
-        }
-    //}
+        	}*/
+        //}	
+        session.transfer(flowFile, REL_SUCCESS);	
+    }
 }
