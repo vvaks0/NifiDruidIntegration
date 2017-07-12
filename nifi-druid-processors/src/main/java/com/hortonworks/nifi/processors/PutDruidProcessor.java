@@ -31,6 +31,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import com.hortonworks.nifi.controller.api.DruidTranquilityService;
 import com.metamx.tranquility.tranquilizer.MessageDroppedException;
 import com.metamx.tranquility.tranquilizer.Tranquilizer;
+import com.twitter.util.Await;
 import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
 
@@ -149,8 +150,8 @@ public class PutDruidProcessor
         });
 
         try {
-            future.wait();
-        } catch (InterruptedException e) {
+            Await.result(future);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
