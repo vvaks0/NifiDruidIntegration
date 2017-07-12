@@ -44,7 +44,6 @@ public class PutDruidProcessor
 
     private List<PropertyDescriptor> properties;
     private Set<Relationship> relationships;
-    private Map<String,String> relType;
 
     public static final PropertyDescriptor DRUID_TRANQUILITY_SERVICE = new PropertyDescriptor.Builder()
             .name("druid_tranquility_service")
@@ -125,7 +124,7 @@ public class PutDruidProcessor
         getLogger().debug("********** Tranquilizer Status: " + tranquilizer.status().toString());
         Future<BoxedUnit> future = tranquilizer.send(contentMap);
         getLogger().debug("********** Sent Payload to Druid: " + contentMap);
-        relType = new HashMap<String,String>();
+        
         future.addEventListener(new FutureEventListener<Object>() {
             @Override
             public void onFailure(Throwable cause) {
@@ -133,31 +132,20 @@ public class PutDruidProcessor
                     getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
                     cause.getStackTrace();
                     getLogger().error("********** Transfering FlowFile to DROPPED relationship");
-                    PutDruidProcessor.this.relType.put("rel","DROPPED");
-                    //session.transfer(flowFile, REL_DROPPED);
+                    session.transfer(flowFile, REL_DROPPED);
                 } else {
                     getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
                     cause.printStackTrace();
                     getLogger().error("********** Transfering FlowFile to FAIL relationship");
-                    PutDruidProcessor.this.relType.put("rel","FAIL");
-                    //session.transfer(flowFile, REL_FAIL);
+                    session.transfer(flowFile, REL_FAIL);
                 }
             }
 
             @Override
             public void onSuccess(Object value) {
-                getLogger().debug("********** FlowFile Processing Success : "+ value);
-                PutDruidProcessor.this.relType.put("rel","SUCCESS");
-                //session.transfer(flowFile, REL_SUCCESS);
+            	getLogger().debug("********** FlowFile Processing Success : "+ value);
+                session.transfer(flowFile, REL_SUCCESS);
             }
         });
-        
-        if(relType.get("rel").toString().equals("SUCCESS")){
-        	session.transfer(flowFile, REL_SUCCESS);
-        }else if(relType.get("rel").toString().equals("DROPPED")){
-        	session.transfer(flowFile, REL_DROPPED);
-        }else if(relType.get("rel").toString().equals("FAIL")){
-        	session.transfer(flowFile, REL_FAIL);
-        }
     }
 }
