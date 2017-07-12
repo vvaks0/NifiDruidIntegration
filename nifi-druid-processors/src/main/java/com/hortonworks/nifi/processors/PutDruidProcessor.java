@@ -147,5 +147,11 @@ public class PutDruidProcessor
                 session.transfer(flowFile, REL_SUCCESS);
             }
         });
+
+        try {
+            future.wait();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
