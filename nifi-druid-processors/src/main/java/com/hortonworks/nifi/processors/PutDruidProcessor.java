@@ -113,11 +113,12 @@ public class PutDruidProcessor
         String contentString = new String(buffer, StandardCharsets.UTF_8);  // Dangerous! Should be pulling the system default charset. Charset.defaultCharset()
         Map<String,Object> contentMap = null;
         
-        String[] messageArray = contentString.split("\\R");
+        //String[] messageArray = contentString.split("\\R");
         
-        for(String message: messageArray){
+        //for(String message: messageArray){
         	try {
-        		contentMap = new ObjectMapper().readValue(message, HashMap.class);
+        		contentMap = new ObjectMapper().readValue(contentString, HashMap.class);
+        		//contentMap = new ObjectMapper().readValue(message, HashMap.class);
         	} catch (JsonParseException e) {
         		e.printStackTrace();
         	} catch (JsonMappingException e) {
@@ -159,5 +160,5 @@ public class PutDruidProcessor
         		e.printStackTrace();
         	}
         }
-    }
+    //}
 }
