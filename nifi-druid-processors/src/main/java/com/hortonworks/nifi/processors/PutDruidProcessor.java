@@ -112,47 +112,52 @@ public class PutDruidProcessor
 
         String contentString = new String(buffer, StandardCharsets.UTF_8);  // Dangerous! Should be pulling the system default charset. Charset.defaultCharset()
         Map<String,Object> contentMap = null;
-        try {
-            contentMap = new ObjectMapper().readValue(contentString, HashMap.class);
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        getLogger().debug("********** Tranquilizer Status: " + tranquilizer.status().toString());
-        Future<BoxedUnit> future = tranquilizer.send(contentMap);
-        getLogger().debug("********** Sent Payload to Druid: " + contentMap);
         
-        future.addEventListener(new FutureEventListener<Object>() {
-            @Override
-            public void onFailure(Throwable cause) {
-                if (cause instanceof MessageDroppedException) {
-                    getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
-                    cause.getStackTrace();
-                    getLogger().error("********** Transfering FlowFile to DROPPED relationship");
-                    session.transfer(flowFile, REL_DROPPED);
-                } else {
-                    getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
-                    cause.printStackTrace();
-                    getLogger().error("********** Transfering FlowFile to FAIL relationship");
-                    session.transfer(flowFile, REL_FAIL);
-                }
-            }
+        String[] messageArray = contentString.split("\\R");
+        
+        for(String message: messageArray){
+        	try {
+        		contentMap = new ObjectMapper().readValue(message, HashMap.class);
+        	} catch (JsonParseException e) {
+        		e.printStackTrace();
+        	} catch (JsonMappingException e) {
+        		e.printStackTrace();
+        	} catch (IOException e) {
+        		e.printStackTrace();
+        	}
 
-            @Override
-            public void onSuccess(Object value) {
-            	getLogger().debug("********** FlowFile Processing Success : "+ value);
-                session.transfer(flowFile, REL_SUCCESS);
-            }
-        });
+        	getLogger().debug("********** Tranquilizer Status: " + tranquilizer.status().toString());
+        	Future<BoxedUnit> future = tranquilizer.send(contentMap);
+        	getLogger().debug("********** Sent Payload to Druid: " + contentMap);
+        
+        	future.addEventListener(new FutureEventListener<Object>() {
+        		@Override
+        		public void onFailure(Throwable cause) {
+        			if (cause instanceof MessageDroppedException) {
+        				getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
+        				cause.getStackTrace();
+        				getLogger().error("********** Transfering FlowFile to DROPPED relationship");
+        				session.transfer(flowFile, REL_DROPPED);
+        			} else {
+        				getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
+        				cause.printStackTrace();
+        				getLogger().error("********** Transfering FlowFile to FAIL relationship");
+        				session.transfer(flowFile, REL_FAIL);
+        			}
+        		}
 
-        try {
-            Await.result(future);
-        } catch (Exception e) {
-            e.printStackTrace();
+        		@Override
+        		public void onSuccess(Object value) {
+        			getLogger().debug("********** FlowFile Processing Success : "+ value);
+        			session.transfer(flowFile, REL_SUCCESS);
+        		}
+        	});
+
+        	try {
+        		Await.result(future);
+        	} catch (Exception e) {
+        		e.printStackTrace();
+        	}
         }
     }
 }
