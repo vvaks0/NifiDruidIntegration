@@ -118,7 +118,7 @@ public class PutDruidProcessor
         
         for(String message: messageArray){
         	try {
-        		contentMap = new ObjectMapper().readValue(contentString, HashMap.class);
+        		contentMap = new ObjectMapper().readValue(message, HashMap.class);
         		//contentMap = new ObjectMapper().readValue(message, HashMap.class);
         	} catch (JsonParseException e) {
         		e.printStackTrace();
