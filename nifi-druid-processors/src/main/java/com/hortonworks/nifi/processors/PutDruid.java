@@ -191,8 +191,9 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
     
     public void onTrigger(ProcessContext context, ProcessSessionFactory factory) throws ProcessException {
     	final ProcessSession session = factory.createSession();
-    	
-    	processFlowFile(context, session);
+    	new Thread(() -> {
+    		processFlowFile(context, session);
+    	}).start();
     }
     
     public static class FlowFileEntryTimeWrapper {
