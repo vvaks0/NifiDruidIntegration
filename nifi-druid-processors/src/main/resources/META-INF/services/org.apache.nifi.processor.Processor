@@ -1,1 +1,2 @@
+com.hortonworks.nifi.processors.PutDruid
 com.hortonworks.nifi.processors.PutDruidProcessor
