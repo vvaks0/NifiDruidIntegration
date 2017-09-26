@@ -1,3 +1,21 @@
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hortonworks.nifi.processors;
 
 import java.io.IOException;
@@ -10,16 +28,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.nifi.annotation.behavior.SideEffectFree;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.AbstractSessionFactoryProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
@@ -28,8 +42,8 @@ import org.apache.nifi.processor.ProcessorInitializationContext;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
-import org.apache.nifi.stream.io.StreamThrottler;
 import org.apache.nifi.stream.io.StreamUtils;
+
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -44,17 +58,15 @@ import com.twitter.util.FutureEventListener;
 import scala.runtime.BoxedUnit;
 
 @SideEffectFree
-@Tags({"Druid","Timeseries","OLAP"})
-@CapabilityDescription("Sends events to Apache Druid for Indexing")
+@Tags({"Druid","Timeseries","OLAP","ingest"})
+@CapabilityDescription("Sends events to Apache Druid for Indexing. "
+						+ "Leverages Druid Tranquility Controller service."
+						+ "Incoming flow files are expected to contain 1 or many JSON objects, one JSON object per line")
 public class PutDruid extends AbstractSessionFactoryProcessor {
 
     private List<PropertyDescriptor> properties;
     private Set<Relationship> relationships;
     private final Map<Object,String> messageStatus = new HashMap<Object,String>();
-    
-    private final ConcurrentMap<String, FlowFileEntryTimeWrapper> flowFileMap = new ConcurrentHashMap<>();
-    private final AtomicReference<ProcessSessionFactory> sessionFactoryReference = new AtomicReference<>();
-    private final AtomicReference<StreamThrottler> throttlerRef = new AtomicReference<>();
 
     public static final PropertyDescriptor DRUID_TRANQUILITY_SERVICE = new PropertyDescriptor.Builder()
             .name("druid_tranquility_service")
@@ -100,22 +112,9 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
         return properties;
     }
     
-    private Set<String> findOldFlowFileIds(final ProcessContext ctx) {
-        final Set<String> old = new HashSet<>();
-
-        //final long expiryMillis = ctx.getProperty(MAX_UNCONFIRMED_TIME).asTimePeriod(TimeUnit.MILLISECONDS);
-        final long expiryMillis = 60000;
-        final long cutoffTime = System.currentTimeMillis() - expiryMillis;
-        for (final Map.Entry<String, FlowFileEntryTimeWrapper> entry : flowFileMap.entrySet()) {
-            final FlowFileEntryTimeWrapper wrapper = entry.getValue();
-            if (wrapper != null && wrapper.getEntryTime() < cutoffTime) {
-                old.add(entry.getKey());
-            }
-        }
-        return old;
-    }
-    
+    //Method breaks down incoming flow file and sends it to Druid Indexing servic
     private void processFlowFile(ProcessContext context, ProcessSession session){
+    	 //Get handle on Druid Tranquility session
     	 DruidTranquilityService tranquilityController = context.getProperty(DRUID_TRANQUILITY_SERVICE)
                  .asControllerService(DruidTranquilityService.class);
          Tranquilizer<Map<String,Object>> tranquilizer = tranquilityController.getTranquilizer();
@@ -124,62 +123,70 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
          if (flowFile == null || flowFile.getSize() == 0) {
              return;
          }
-
-         final byte[] buffer = new byte[(int) flowFile.getSize()];   // Dangerous! Flowfile size could be larger than machine architecture int!
+         
+         //Get data from flow file body
+         final byte[] buffer = new byte[(int) flowFile.getSize()];
          session.read(flowFile, new InputStreamCallback() {
              @Override
              public void process(final InputStream in) throws IOException {
                  StreamUtils.fillBuffer(in, buffer);
              }
          });
-
-         String contentString = new String(buffer, StandardCharsets.UTF_8);  // Dangerous! Should be pulling the system default charset. Charset.defaultCharset()
+         
+         
+         String contentString = new String(buffer, StandardCharsets.UTF_8);
          Map<String,Object> contentMap = null;
          
+         //Create payload array from flow file content, one element per line
          String[] messageArray = contentString.split("\\R");
          
+         //Convert each array element from JSON to HashMap and send to Druid
          for(String message: messageArray){
          	try {
          		contentMap = new ObjectMapper().readValue(message, HashMap.class);
          		//contentMap = new ObjectMapper().readValue(message, HashMap.class);
          	} catch (JsonParseException e) {
-         		e.printStackTrace();
+         		getLogger().error("Error parsing incoming message array in the flowfile body");
          	} catch (JsonMappingException e) {
-         		e.printStackTrace();
+         		getLogger().error("Error parsing incoming message array in the flowfile body");
          	} catch (IOException e) {
-         		e.printStackTrace();
+         		getLogger().error("Error parsing incoming message array in the flowfile body");
          	}
 
-         	getLogger().debug("********** Tranquilizer Status: " + tranquilizer.status().toString());
+         	getLogger().debug("Tranquilizer Status: " + tranquilizer.status().toString());
          	messageStatus.put(flowFile, "pending");
+         	//Send data element to Druid, Asynch
          	Future<BoxedUnit> future = tranquilizer.send(contentMap);
-         	getLogger().debug("********** Sent Payload to Druid: " + contentMap);
+         	getLogger().debug(" Sent Payload to Druid: " + contentMap);
          
+         	//Wait for Druid to call back with status 
          	future.addEventListener(new FutureEventListener<Object>() {
          		@Override
          		public void onFailure(Throwable cause) {
          			if (cause instanceof MessageDroppedException) {
-         				getLogger().error("********** FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
+         				//This happens when event timestamp targets a Druid Indexing task that has closed (Late Arriving Data) 
+         				getLogger().error(" FlowFile Dropped due to MessageDroppedException: " + cause.getMessage() + " : " + cause);
          				cause.getStackTrace();
-         				getLogger().error("********** Transfering FlowFile to DROPPED relationship");
+         				getLogger().error(" Transfering FlowFile to DROPPED relationship");
          				session.transfer(flowFile, REL_DROPPED);
          			} else {
-         				getLogger().error("********** FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
+         				getLogger().error(" FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
          				cause.printStackTrace();
-         				getLogger().error("********** Transfering FlowFile to FAIL relationship");
+         				getLogger().error(" Transfering FlowFile to FAIL relationship");
          				session.transfer(flowFile, REL_FAIL);
          			}
          		}
 
          		@Override
          		public void onSuccess(Object value) {
-         			getLogger().debug("********** FlowFile Processing Success : "+ value.toString());
+         			getLogger().debug(" FlowFile Processing Success : "+ value.toString());
          			session.transfer(flowFile, REL_SUCCESS);
          		}
          	});
 
-         	
          	try {
+         		//Wait for result from Druid 
+         		//This method will be asynch since this is a SessionFactoryProcessor and OnTrigger will create a new Thread
          		Await.result(future);
          	} catch (Exception e) {
          		e.printStackTrace();
@@ -191,39 +198,9 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
     
     public void onTrigger(ProcessContext context, ProcessSessionFactory factory) throws ProcessException {
     	final ProcessSession session = factory.createSession();
+    	//Create new Thread to ensure that waiting for callback does not reduce throughput
     	new Thread(() -> {
     		processFlowFile(context, session);
     	}).start();
-    }
-    
-    public static class FlowFileEntryTimeWrapper {
-
-        private final Set<FlowFile> flowFiles;
-        private final long entryTime;
-        private final ProcessSession session;
-        private final String clientIP;
-
-        public FlowFileEntryTimeWrapper(final ProcessSession session, final Set<FlowFile> flowFiles, final long entryTime, final String clientIP) {
-            this.flowFiles = flowFiles;
-            this.entryTime = entryTime;
-            this.session = session;
-            this.clientIP = clientIP;
-        }
-
-        public Set<FlowFile> getFlowFiles() {
-            return flowFiles;
-        }
-
-        public long getEntryTime() {
-            return entryTime;
-        }
-
-        public ProcessSession getSession() {
-            return session;
-        }
-
-        public String getClientIP() {
-            return clientIP;
-        }
     }
 }

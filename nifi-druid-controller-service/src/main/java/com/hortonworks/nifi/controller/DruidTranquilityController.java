@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hortonworks.nifi.controller;
 
 import java.io.IOException;
@@ -49,7 +66,9 @@ import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 
 @Tags({"Druid","Timeseries","OLAP"})
-@CapabilityDescription("Provides a controller service to manage property files.")
+@CapabilityDescription("Asyncronously sends flowfiles to Druid Indexing Task using Tranquility API. "
+		+ "If aggregation and roll-up of data is required, an Aggregator JSON desriptor needs to be provided."
+		+ "Details on how desribe aggregation using JSON can be found at: http://druid.io/docs/latest/querying/aggregations.html")
 public class DruidTranquilityController extends AbstractControllerService implements DruidTranquilityService{
 	private String firehosePattern = "druid:firehose:%s";
 	private int clusterPartitions = 1;
@@ -99,7 +118,29 @@ public class DruidTranquilityController extends AbstractControllerService implem
 	
 	public static final PropertyDescriptor AGGREGATOR_JSON = new PropertyDescriptor.Builder()
             .name("aggregators_descriptor")
-            .description("Tranquility compliant JSON string that defines what aggregators to apply on ingest.")
+            .description("Tranquility compliant JSON string that defines what aggregators to apply on ingest."
+            		+ "Example: "
+            		+ "["
+            		+ 	"{"
+            		+ 	"	\"type\" : \"count\","
+            		+ 	"	\"name\" : \"count\","
+            		+ 	"},"
+            		+	"{"
+            		+ 	"	\"name\" : \"value_sum\","
+            		+ 	"	\"type\" : \"doubleSum\","
+            		+ 	"	\"fieldName\" : \"value\""
+            		+	"},"
+            		+	"{"
+            		+	"	\"fieldName\" : \"value\","
+            		+	"	\"name\" : \"value_min\","
+            		+ 	"	\"type\" : \"doubleMin\""
+            		+	"},"
+            		+ 	"{"
+            		+ 	"	\"type\" : \"doubleMax\","
+            		+ 	"	\"name\" : \"value_max\","
+            		+ 	"	\"fieldName\" : \"value\""
+            		+ 	"}"
+            		+ "]")
             .required(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
@@ -163,7 +204,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
 
 	@OnEnabled
 	public void onConfigured(final ConfigurationContext context) throws InitializationException{
-		getLogger().info("********** Starting Druid Tranquility Controller Service...");
+		getLogger().info("Starting Druid Tranquility Controller Service...");
 	   
 		final String dataSource = context.getProperty(DATASOURCE).getValue();
 		final String zkConnectString = context.getProperty(CONNECT_STRING).getValue();
@@ -190,13 +231,13 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		
 		Iterator<AggregatorFactory> aggIterator = aggregator.iterator();
 		AggregatorFactory currFactory;
-		getLogger().debug("********** Number of Aggregations Defined: " + aggregator.size());
+		getLogger().debug("Number of Aggregations Defined: " + aggregator.size());
 		while(aggIterator.hasNext()){
 			currFactory = aggIterator.next();
-			getLogger().debug("********** Verifying Aggregator Definition");
-			getLogger().debug("********** Aggregator Name: " + currFactory.getName());
-			getLogger().debug("********** Aggregator Type: " + currFactory.getTypeName());
-			getLogger().debug("********** Aggregator Req Fields: " + currFactory.requiredFields());			
+			getLogger().debug("Verifying Aggregator Definition");
+			getLogger().debug("Aggregator Name: " + currFactory.getName());
+			getLogger().debug("Aggregator Type: " + currFactory.getTypeName());
+			getLogger().debug("Aggregator Req Fields: " + currFactory.requiredFields());			
 		}
 		// Tranquility uses ZooKeeper (through Curator) for coordination.
 		final CuratorFramework curator = CuratorFrameworkFactory
@@ -210,8 +251,6 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		// Druid expects the field to be called "timestamp" and to be an ISO8601 timestamp.
 		final TimestampSpec timestampSpec = new TimestampSpec(timestampField, "auto", null);
 		        
-		//final TranquilityConfig<PropertiesBasedConfig> druidIngestConfig = TranquilityConfig.read(druidConfig);
-		//final DataSourceConfig<PropertiesBasedConfig> druidDataSourceConfig = druidIngestConfig.getDataSource(dataSource);
 		final Beam<Map<String, Object>> beam = DruidBeams.builder(timestamper)
 			    		.curator(curator)
 		                .discoveryPath(discoveryPath)
@@ -253,12 +292,11 @@ public class DruidTranquilityController extends AbstractControllerService implem
         ObjectMapper mapper = new ObjectMapper();
         List<Map<String, String>> aggSpecList = null;
         try {
-        	getLogger().debug("********** Druid Tranquility Service: Aggregator Spec as String: " + aggregatorJson);
+        	getLogger().debug("Druid Tranquility Service: Aggregator Spec as String: " + aggregatorJson);
             aggSpecList = mapper.readValue(aggregatorJson, List.class);
-            getLogger().debug("********** Druid Tranquility Service: Aggregator Spec as List: " + aggSpecList);
+            getLogger().debug("Druid Tranquility Service: Aggregator Spec as List: " + aggSpecList);
         	return aggSpecList;
         } catch (IOException e) {
-        	e.printStackTrace();
             throw new IllegalArgumentException("Exception while parsing the aggregratorJson");
         }
     }
