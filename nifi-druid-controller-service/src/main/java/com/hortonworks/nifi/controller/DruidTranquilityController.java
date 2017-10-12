@@ -41,7 +41,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 
-import com.hortonworks.nifi.controller.api.DruidTranquilityService;
 import com.metamx.common.Granularity;
 import com.metamx.tranquility.beam.Beam;
 import com.metamx.tranquility.beam.ClusteredBeamTuning;
@@ -65,11 +64,11 @@ import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 
-@Tags({"Druid","Timeseries","OLAP"})
+@Tags({"Druid","Timeseries","OLAP","ingest"})
 @CapabilityDescription("Asyncronously sends flowfiles to Druid Indexing Task using Tranquility API. "
 		+ "If aggregation and roll-up of data is required, an Aggregator JSON desriptor needs to be provided."
 		+ "Details on how desribe aggregation using JSON can be found at: http://druid.io/docs/latest/querying/aggregations.html")
-public class DruidTranquilityController extends AbstractControllerService implements DruidTranquilityService{
+public class DruidTranquilityController extends AbstractControllerService implements com.hortonworks.nifi.controller.api.DruidTranquilityService{
 	private String firehosePattern = "druid:firehose:%s";
 	private int clusterPartitions = 1;
     private int clusterReplication = 1 ;
@@ -178,6 +177,32 @@ public class DruidTranquilityController extends AbstractControllerService implem
             .defaultValue("PT10M")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
+	
+	public static final PropertyDescriptor MAX_BATCH_SIZE = new PropertyDescriptor.Builder()
+            .name("maxBatchSize")
+            .description("Maximum number of messages to send at once.")
+            .required(true)
+            .defaultValue("2000")
+            .addValidator(StandardValidators.NUMBER_VALIDATOR)
+            .build();
+	
+	public static final PropertyDescriptor MAX_PENDING_BATCHES = new PropertyDescriptor.Builder()
+            .name("maxPendingBatches")
+            .description("Maximum number of batches that may be in flight before service blocks and waits for one to finish.")
+            .required(true)
+            .defaultValue("5")
+            .addValidator(StandardValidators.NUMBER_VALIDATOR)
+            .build();
+	
+	public static final PropertyDescriptor LINGER_MILLIS = new PropertyDescriptor.Builder()
+            .name("lingerMillis")
+            .description("Wait this long for batches to collect more messages (up to maxBatchSize) before sending them. "
+            		+ "Set to zero to disable waiting. "
+            		+ "Set to -1 to always wait for complete batches before sending. ")
+            .required(true)
+            .defaultValue("1000")
+            .addValidator(StandardValidators.NUMBER_VALIDATOR)
+            .build();
 
 	 private static final List<PropertyDescriptor> properties;
 	
@@ -193,6 +218,9 @@ public class DruidTranquilityController extends AbstractControllerService implem
 	    props.add(QUERY_GRANULARITY);
 	    props.add(WINDOW_PERIOD);
 	    props.add(TIMESTAMP_FIELD);
+	    props.add(MAX_BATCH_SIZE);
+	    props.add(MAX_PENDING_BATCHES);
+	    props.add(LINGER_MILLIS);
 	    
 	    properties = Collections.unmodifiableList(props);
 	}
@@ -216,6 +244,9 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		final String windowPeriod = context.getProperty(WINDOW_PERIOD).getValue();
 		final String aggregatorJSON = context.getProperty(AGGREGATOR_JSON).getValue();
 		final String dimensionsStringList = context.getProperty(DIMENSIONS_LIST).getValue();
+		final int maxBatchSize = Integer.valueOf(context.getProperty(MAX_BATCH_SIZE).getValue());
+		final int maxPendingBatches = Integer.valueOf(context.getProperty(MAX_PENDING_BATCHES).getValue());
+		final int lingerMillis = Integer.valueOf(context.getProperty(LINGER_MILLIS).getValue());
 		
 		final List<String> dimensions = getDimensions(dimensionsStringList);
 	    final List<AggregatorFactory> aggregator = getAggregatorList(aggregatorJSON);
@@ -260,7 +291,6 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		                .tuning(
 		                        ClusteredBeamTuning
 		                                .builder()
-		                                //.segmentGranularity(Granularity.MINUTE)
 		                                .segmentGranularity(getSegmentGranularity(segmentGranularity))
 		                                .windowPeriod(new Period(windowPeriod))
 		                                .partitions(clusterPartitions)
@@ -275,9 +305,9 @@ public class DruidTranquilityController extends AbstractControllerService implem
 		                .buildBeam();
 		
 		tranquilizer = Tranquilizer.builder()
-                .maxBatchSize(10000000)
-                .maxPendingBatches(1000)
-                .lingerMillis(1000)
+                .maxBatchSize(maxBatchSize)
+                .maxPendingBatches(maxPendingBatches)
+                .lingerMillis(lingerMillis)
                 .blockOnFull(true)
                 .build(beam);
 		
@@ -292,9 +322,7 @@ public class DruidTranquilityController extends AbstractControllerService implem
         ObjectMapper mapper = new ObjectMapper();
         List<Map<String, String>> aggSpecList = null;
         try {
-        	getLogger().debug("Druid Tranquility Service: Aggregator Spec as String: " + aggregatorJson);
             aggSpecList = mapper.readValue(aggregatorJson, List.class);
-            getLogger().debug("Druid Tranquility Service: Aggregator Spec as List: " + aggSpecList);
         	return aggSpecList;
         } catch (IOException e) {
             throw new IllegalArgumentException("Exception while parsing the aggregratorJson");
@@ -312,31 +340,24 @@ public class DruidTranquilityController extends AbstractControllerService implem
         for (Map<String, String> aggregator : aggregatorInfo) {
 
             if (aggregator.get("type").equalsIgnoreCase("count")) {
-                //Map<String, String> map = aggregator.get("count");
                 aggregatorList.add(getCountAggregator(aggregator));
             }
             else if (aggregator.get("type").equalsIgnoreCase("doublesum")) {
-                //Map<String, String> map = aggregator.get("doublesum");
                 aggregatorList.add(getDoubleSumAggregator(aggregator));
             }
             else if (aggregator.get("type").equalsIgnoreCase("doublemax")) {
-                //Map<String, String> map = aggregator.get("doublemax");
                 aggregatorList.add(getDoubleMaxAggregator(aggregator));
             }
             else if (aggregator.get("type").equalsIgnoreCase("doublemin")) {
-                //Map<String, String> map = aggregator.get("doublemin");
                 aggregatorList.add(getDoubleMinAggregator(aggregator));
             }
             else if (aggregator.get("type").equalsIgnoreCase("longsum")) {
-                //Map<String, String> map = aggregator.get("longsum");
                 aggregatorList.add(getLongSumAggregator(aggregator));
             }
             else if (aggregator.get("type").equalsIgnoreCase("longmax")) {
-                //Map<String, String> map = aggregator.get("longmax");
                 aggregatorList.add(getLongMaxAggregator(aggregator));
             }
             else if (aggregator.get("type").equalsIgnoreCase("longmin")) {
-                //Map<String, String> map = aggregator.get("longmin");
                 aggregatorList.add(getLongMinAggregator(aggregator));
             }
         }

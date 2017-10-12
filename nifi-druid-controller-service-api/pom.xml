@@ -24,7 +24,7 @@
   <artifactId>nifi-druid-controller-service-api</artifactId>
   
    <properties>
-        <nifi.version>1.1.1</nifi.version>
+        <nifi.version>1.3.0</nifi.version>
    </properties>
    
    <dependencies>
