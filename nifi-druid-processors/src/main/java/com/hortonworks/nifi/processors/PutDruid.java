@@ -169,11 +169,13 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
          				cause.getStackTrace();
          				getLogger().error(" Transfering FlowFile to DROPPED relationship");
          				session.transfer(flowFile, REL_DROPPED);
+         				session.commit();
          			} else {
          				getLogger().error(" FlowFile Processing Failed due to: " + cause.getMessage() + " : " + cause);
          				cause.printStackTrace();
          				getLogger().error(" Transfering FlowFile to FAIL relationship");
          				session.transfer(flowFile, REL_FAIL);
+         				session.commit();
          			}
          		}
 
@@ -182,6 +184,7 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
          			getLogger().debug(" FlowFile Processing Success : "+ value.toString());
          			session.transfer(flowFile, REL_SUCCESS);
          			session.getProvenanceReporter().send(flowFile, "Druid Tranquility Service");
+         			session.commit();
          		}
          	});
 
@@ -193,15 +196,13 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
          		e.printStackTrace();
          	}
          }	
-         //session.transfer(flowFile, REL_SUCCESS);
-         session.commit();
     }
     
     public void onTrigger(ProcessContext context, ProcessSessionFactory factory) throws ProcessException {
     	final ProcessSession session = factory.createSession();
     	//Create new Thread to ensure that waiting for callback does not reduce throughput
-    	new Thread(() -> {
+    	//new Thread(() -> {
     		processFlowFile(context, session);
-    	}).start();
+    	//}).start();
     }
 }
