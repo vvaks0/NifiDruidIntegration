@@ -188,13 +188,14 @@ public class PutDruid extends AbstractSessionFactoryProcessor {
          		}
          	});
 
+         	/*
          	try {
          		//Wait for result from Druid 
          		//This method will be asynch since this is a SessionFactoryProcessor and OnTrigger will create a new Thread
          		Await.result(future);
          	} catch (Exception e) {
          		e.printStackTrace();
-         	}
+         	}*/
          }	
     }
     
